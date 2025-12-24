@@ -40,11 +40,11 @@ class StatsRepository:
         try:
             cursor = conn.cursor()
             # バグ: N+1クエリ問題 - 観光地ごとに個別にクエリを発行している
-            # さらにバグ: SQLインジェクション脆弱性 - area_filterを直接埋め込んでいる
+            # ★★★ 修正箇所: SQLインジェクション脆弱性を修正 ★★★
             if area_filter:
-                # バグ: f-stringで直接埋め込み（SQLインジェクション）
-                query = f"SELECT spot_id FROM tourist_spots WHERE address LIKE '%{area_filter}%'"
-                cursor.execute(query)
+                # プレースホルダーを使用してSQLインジェクションを防止
+                query = "SELECT spot_id FROM tourist_spots WHERE address LIKE '%' || ? || '%'"
+                cursor.execute(query, (area_filter,))
             else:
                 cursor.execute('SELECT spot_id FROM tourist_spots')
             spot_ids = [row['spot_id'] for row in cursor.fetchall()]
