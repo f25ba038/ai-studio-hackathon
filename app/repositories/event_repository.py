@@ -76,15 +76,16 @@ class EventRepository:
 
         try:
             cursor = conn.cursor()
-            # SQLインジェクション脆弱性（文字列連結を使用）
-            query = f'''
+            # ★★★ 修正箇所: SQLインジェクション脆弱性を修正 ★★★
+            # プレースホルダーを使用してSQLインジェクションを防止
+            query = '''
                 SELECT * FROM events
-                WHERE event_name LIKE '%{keyword}%'
-                   OR location LIKE '%{keyword}%'
-                   OR description LIKE '%{keyword}%'
+                WHERE event_name LIKE '%' || ? || '%'
+                   OR location LIKE '%' || ? || '%'
+                   OR description LIKE '%' || ? || '%'
                 ORDER BY event_date
             '''
-            cursor.execute(query)
+            cursor.execute(query, (keyword, keyword, keyword))
             events = [dict(row) for row in cursor.fetchall()]
             return events
         except Exception as e:
