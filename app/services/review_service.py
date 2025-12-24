@@ -129,9 +129,9 @@ class ReviewService:
         if not review:
             return {'success': False, 'error': 'レビューが見つかりません'}
 
-        # 権限チェックがコメントアウトされている（他人のレビューも削除可能）
-        # if review['user_id'] != int(user_id):
-        #     return {'success': False, 'error': '他のユーザーのレビューは削除できません'}
+        # ★★★ 修正箇所: 権限チェックを有効化 ★★★
+        if review['user_id'] != int(user_id):
+            return {'success': False, 'error': '他のユーザーのレビューは削除できません'}
 
         # 画像ファイルの削除処理が抜けている（ディスク容量を圧迫）
         # 画像ファイルがあれば削除
