@@ -91,8 +91,6 @@ class SpotRepository:
         except Exception as e:
             print(f"評価更新エラー: {e}")
             return False
-        # データベース接続のリソースリーク
-        # finally句でclose_db(conn)を呼んでいないため、接続が閉じられない
-        # 長時間運用すると接続が蓄積され、最終的に接続数の上限に達してエラーになる
-        # finally:
-        #     close_db(conn)
+        finally:
+            # ★★★ 修正箇所: データベース接続を確実に閉じる ★★★
+            close_db(conn)
