@@ -1,25 +1,19 @@
-let allEvents = [];
-let currentFilter = { type: 'all', value: 'all' };
+// events.js - XSS脆弱性修正箇所のみ
 
-// データベースからイベントを読み込んで表示
-async function loadEventsFromDatabase() {
-    try {
-        const events = await apiClient.getEvents();
-        allEvents = events;
-        displayEvents(events);
-        console.log(`${events.length}件のイベントを表示しました`);
-    } catch (error) {
-        console.error('イベントの読み込みに失敗しました:', error);
-        alert('イベントの読み込みに失敗しました。サーバーが起動していることを確認してください。');
-    }
+// ★★★ 追加: HTMLエスケープ関数 ★★★
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-// イベントを表示
+// ★★★ 修正箇所: displayEvents関数の57-72行目付近 ★★★
 function displayEvents(events) {
     const eventsGrid = document.getElementById('eventsGrid');
 
     if (!eventsGrid) {
-        console.error('イベントグリッド（eventsGrid）が見つかりません');
+        console.error('イベントグリッド(eventsGrid)が見つかりません');
         return;
     }
 
@@ -54,130 +48,40 @@ function displayEvents(events) {
         };
         const areaDisplay = areaNames[event.area] || event.area;
 
-        // XSS脆弱性（event_nameをエスケープせずにHTMLに挿入）
+        // 修正前:
+        // eventElement.innerHTML = `
+        //     <div class="event-date-box">
+        //         <div class="event-month">${month}月</div>
+        //         <div class="event-day">${day}</div>
+        //     </div>
+        //     <div class="event-info">
+        //         <h3>${event.event_name}</h3>
+        //         <div class="event-meta">
+        //             <span class="event-location">📍 ${event.location}</span>
+        //             <span class="event-area">${areaDisplay}</span>
+        //             <span class="event-category">${event.category}</span>
+        //         </div>
+        //         <p class="event-description">${event.description}</p>
+        //     </div>
+        // `;
+
+        // 修正後:
         eventElement.innerHTML = `
             <div class="event-date-box">
                 <div class="event-month">${month}月</div>
                 <div class="event-day">${day}</div>
             </div>
             <div class="event-info">
-                <h3>${event.event_name}</h3>
+                <h3>${escapeHtml(event.event_name)}</h3>
                 <div class="event-meta">
-                    <span class="event-location">📍 ${event.location}</span>
+                    <span class="event-location">📍 ${escapeHtml(event.location)}</span>
                     <span class="event-area">${areaDisplay}</span>
-                    <span class="event-category">${event.category}</span>
+                    <span class="event-category">${escapeHtml(event.category)}</span>
                 </div>
-                <p class="event-description">${event.description}</p>
+                <p class="event-description">${escapeHtml(event.description)}</p>
             </div>
         `;
 
         eventsGrid.appendChild(eventElement);
     });
 }
-
-// 月別フィルタリング
-async function filterByMonth(month, clickedButton) {
-    const monthButtons = document.querySelectorAll('#monthFilter .filter-btn');
-    const areaButtons = document.querySelectorAll('#areaFilter .filter-btn');
-
-    // 月別フィルターのボタンをアクティブに
-    monthButtons.forEach(btn => btn.classList.remove('active'));
-    if (clickedButton) {
-        clickedButton.classList.add('active');
-    }
-
-    // バグ: 地域フィルターをリセットしているため、同時に使えない
-    areaButtons.forEach(btn => btn.classList.remove('active'));
-    areaButtons[0].classList.add('active');
-
-    currentFilter = { type: 'month', value: month };
-
-    try {
-        let events;
-        if (month === 'all') {
-            events = await apiClient.getEvents();
-        } else {
-            events = await apiClient.getEventsByMonth(month);
-        }
-        displayEvents(events);
-    } catch (error) {
-        console.error('月別フィルターエラー:', error);
-        alert('フィルター処理に失敗しました');
-    }
-}
-
-// 地域別フィルタリング
-async function filterByArea(area, clickedButton) {
-    const areaButtons = document.querySelectorAll('#areaFilter .filter-btn');
-    const monthButtons = document.querySelectorAll('#monthFilter .filter-btn');
-
-    // 地域別フィルターのボタンをアクティブに
-    areaButtons.forEach(btn => btn.classList.remove('active'));
-    if (clickedButton) {
-        clickedButton.classList.add('active');
-    }
-
-    // バグ: 月別フィルターをリセットしているため、同時に使えない
-    monthButtons.forEach(btn => btn.classList.remove('active'));
-    monthButtons[0].classList.add('active');
-
-    currentFilter = { type: 'area', value: area };
-
-    try {
-        let events;
-        if (area === 'all') {
-            events = await apiClient.getEvents();
-        } else {
-            events = await apiClient.getEventsByArea(area);
-        }
-        displayEvents(events);
-    } catch (error) {
-        console.error('地域別フィルターエラー:', error);
-        alert('フィルター処理に失敗しました');
-    }
-}
-
-// 検索機能
-async function searchEvents() {
-    const searchInput = document.getElementById('searchInput');
-    const keyword = searchInput.value.trim();
-    const searchResultInfo = document.getElementById('searchResultInfo');
-
-    if (!keyword) {
-        searchResultInfo.textContent = 'キーワードを入力してください';
-        return;
-    }
-
-    try {
-        const results = await apiClient.searchEvents(keyword);
-        displayEvents(results);
-        // バグ: 検索結果件数が表示されない
-        // searchResultInfo.textContent = `「${keyword}」の検索結果: ${results.length}件`;
-    } catch (error) {
-        console.error('検索エラー:', error);
-        searchResultInfo.textContent = '検索に失敗しました';
-    }
-}
-
-// 検索をクリア
-function clearSearch() {
-    const searchInput = document.getElementById('searchInput');
-    const searchResultInfo = document.getElementById('searchResultInfo');
-
-    searchInput.value = '';
-    searchResultInfo.textContent = '';
-
-    // 全イベントを再読み込み
-    loadEventsFromDatabase();
-
-    // フィルターボタンをリセット
-    const allButtons = document.querySelectorAll('.filter-btn');
-    allButtons.forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.filter-btn')[0].classList.add('active');
-    document.querySelectorAll('#areaFilter .filter-btn')[0].classList.add('active');
-}
-
-// ページ読み込み時に実行
-window.addEventListener('DOMContentLoaded', () => {
-    loadEventsFromDatabase();
-});
