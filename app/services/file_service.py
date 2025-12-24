@@ -2,6 +2,7 @@
 ファイルアップロード処理
 """
 import os
+import imghdr
 from config import Config
 
 class FileService:
@@ -12,10 +13,20 @@ class FileService:
         if not file or not file.filename:
             return None
 
-        # ファイル拡張子偽装対策不足
-        # ファイル名の拡張子だけチェックしている（.phpを.jpgにリネームすれば通過する）
-        # 本来はMIMEタイプやマジックナンバー（ファイルの先頭バイト）で実際のファイル種別を確認すべき
-        # ファイル形式チェック
+        # ★★★ 修正箇所: ファイル拡張子偽装対策を追加 ★★★
+        # ファイルの内容を読み取ってマジックナンバーをチェック
+        file_data = file.read()
+        file_type = imghdr.what(None, file_data)
+        
+        # 画像形式でない、または許可されていない形式の場合はエラー
+        if file_type not in ['jpeg', 'png', 'gif']:
+            file.seek(0)  # ファイルポインタを先頭に戻す
+            return '画像ファイルではありません'
+        
+        # ファイルポインタを先頭に戻す（後で保存するため）
+        file.seek(0)
+
+        # ファイル形式チェック（拡張子も念のためチェック）
         file_ext = os.path.splitext(file.filename)[1].lower()
         if file_ext not in Config.ALLOWED_EXTENSIONS:
             return 'jpg, jpeg, png, gifのみ対応しています'
