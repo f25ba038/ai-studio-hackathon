@@ -101,6 +101,7 @@ class ReviewService:
         if not review_id:
             return {'success': False, 'error': 'レビューの作成に失敗しました'}
 
+        # ★★★ 修正箇所: トランザクション処理不備を修正 ★★★
         # 画像保存
         photo_filename = None
         if photo and photo.filename:
@@ -109,10 +110,9 @@ class ReviewService:
                 self.review_repo.update_photo_filename(review_id, photo_filename)
             except Exception as e:
                 print(f"画像保存エラー: {e}")
-                # トランザクション処理不備
-                # 画像保存失敗時にレビューをロールバックしていない
-                # 本来はトランザクションを使って、画像保存失敗時はレビューも削除すべき
-                # 画像保存失敗してもレビューは作成済みなので成功として返す
+                # 画像保存失敗時はレビューをロールバック（削除）
+                self.review_repo.delete(review_id)
+                return {'success': False, 'error': '画像の保存に失敗しました'}
 
         return {
             'success': True,
@@ -129,7 +129,7 @@ class ReviewService:
         if not review:
             return {'success': False, 'error': 'レビューが見つかりません'}
 
-        # ★★★ 修正箇所: 権限チェックを有効化 ★★★
+        # 権限チェックを有効化
         if review['user_id'] != int(user_id):
             return {'success': False, 'error': '他のユーザーのレビューは削除できません'}
 
